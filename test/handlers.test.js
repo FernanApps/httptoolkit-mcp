@@ -218,6 +218,33 @@ describe("handlers - capture tools (offline)", () => {
       assert.deepEqual(data[0].matchIn, ["request_body", "response_body"]);
     });
 
+    it("does not crash with null bodies", async () => {
+      injectExchanges([
+        makeExchange("1", "GET", "https://example.com/", 200, null, null),
+      ]);
+      const result = await handlers.search_bodies({ pattern: "anything" });
+      assert.ok(result.content[0].text.includes("No matches"));
+    });
+
+    it("does not crash with aborted response", async () => {
+      const ex = makeExchange("1", "POST", "https://example.com/", null, "data", null);
+      ex.response = "aborted";
+      ex.aborted = true;
+      injectExchanges([ex]);
+      const result = await handlers.search_bodies({ pattern: "data" });
+      const data = JSON.parse(result.content[0].text);
+      assert.equal(data.length, 1);
+      assert.deepEqual(data[0].matchIn, ["request_body"]);
+    });
+
+    it("does not crash with no response", async () => {
+      injectExchanges([
+        makeExchange("1", "GET", "https://example.com/", null),
+      ]);
+      const result = await handlers.search_bodies({ pattern: "test" });
+      assert.ok(result.content[0].text.includes("No matches"));
+    });
+
     it("returns no matches message", async () => {
       injectExchanges([makeExchange("1", "GET", "https://example.com/", 200)]);
       const result = await handlers.search_bodies({ pattern: "xyz" });
